@@ -140,7 +140,7 @@ class Function:
                 self.deviation_x = int(float(x_center) * img_size[1]) - 400 
                 self.deviation_y = int(float(y_center) * img_size[0]) - int(img_size[0]/2)
 
-                if abs(self.deviation_x) < 100:
+                if abs(self.deviation_x) < 50:
                     self.deviation_x = 0
                 if self.deviation_x > 0:
                     self.direction = 1
@@ -162,19 +162,28 @@ class Function:
             cv2.putText(frame, ('S' + str(self.direction) + str(self.send_data_0) + str(self.send_data_1) + 'E'), (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
             
     def send_data(self):
+        # 第一次到达时停止，进入第二次判断惯性区间
+        is_arrive = 0
         while 1:
             time.sleep(0.005)
-            if   Function.SEND_DATA_1 / 100 > 0:
-                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
+            if is_arrive == 0:
+                if   Function.SEND_DATA_1 / 100 > 0:
+                    self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
 
-            elif Function.SEND_DATA_1 / 10 > 0:
-                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
+                elif Function.SEND_DATA_1 / 10 > 0:
+                    self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
 
-            elif Function.SEND_DATA_1 / 1 > 0:
-                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(0) + str(0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
+                elif Function.SEND_DATA_1 / 1 > 0:
+                    self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(0) + str(0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
 
-            elif Function.DEVIATION_X == 0:
-                self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
-     
-            else:
-                self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
+                elif Function.DEVIATION_X == 0:
+                    self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
+                    is_arrive = 1
+        
+                else:
+                    self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
+            else :
+                if abs(Function.DEVIATION_X) < 100:
+                    self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
+                else :
+                    is_arrive = 0
