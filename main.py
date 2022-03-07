@@ -39,7 +39,7 @@ def run(Video, Fun):
                     print("Write Frame Error")
 
             cv2.imshow("frame",frame)
-            print("Inference == " + str(1/(t3 - t2)))
+            # print("Inference == " + str(1/(t3 - t2)))
         except mvsdk.CameraException as e:
             if e.error_code != mvsdk.CAMERA_STATUS_TIME_OUT:
                 print("CameraGetImageBuffer failed({}): {}".format(e.error_code, e.message) )

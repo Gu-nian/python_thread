@@ -8,7 +8,7 @@ import numpy as np
 class Video_capture:
     COLS = 1280
     ROWS = 800
-    ExposureTime = 50 
+    ExposureTime = 4 * 1000
     IS_SAVE_VIDEO = 0
     # 相机初始化配置
     def __init__(self,is_save_video = 0):
@@ -69,7 +69,7 @@ class Video_capture:
 
             # 手动曝光，曝光时间30ms
             mvsdk.CameraSetAeState(self.hCamera, 0)
-            mvsdk.CameraSetExposureTime(self.hCamera, Video_capture.ExposureTime * 1000)
+            mvsdk.CameraSetExposureTime(self.hCamera, Video_capture.ExposureTime )
             mvsdk.CameraSetWbMode(self.hCamera, FALSE)
             mvsdk.CameraSetOnceWB(self.hCamera)
 

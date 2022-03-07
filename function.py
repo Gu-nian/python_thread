@@ -112,7 +112,7 @@ class Function:
                     line = (cls, *xywh)
                     aim = ('%g ' * len(line)).rstrip() % line 
                     aim = aim.split(' ')
-                    if float(conf) > 0.45:
+                    if float(conf) > 0.8:
                         aims.append(aim)
                         confs.append(float(conf))
 
@@ -130,21 +130,27 @@ class Function:
                     cv2.putText(frame,str(float(round(confs[i], 2))), top_right, cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
                     cv2.putText(frame, tag, top_left, cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 0, 255), 4)
 
-                    box_distance = math.sqrt(pow((top_left[0]+bottom_right[0] - 400), 2) + pow((top_left[1]+bottom_right[1] - img_size[0]), 2))
+                    # box_distance = math.sqrt(pow((top_left[0]+bottom_right[0] - 400), 2) + pow((top_left[1]+bottom_right[1] - img_size[0]), 2))
+                    box_distance = abs(x_center - 400)
                     if box_distance < min:
                         min = box_distance
                         num = i
 
                 last_box = aims[num]
                 tag, x_center, y_center, width, height = last_box
-                self.deviation_x = int(float(x_center) * img_size[1]) - 400 
-                self.deviation_y = int(float(y_center) * img_size[0]) - int(img_size[0]/2)
+                x_center, width = float(x_center) * img_size[1], float(width) * img_size[1]
+                y_center, height = float(y_center) * img_size[0], float(height) * img_size[0]
 
-                if abs(self.deviation_x) < 50:
+                top_left = (int(x_center - width * 0.5), int(y_center - height * 0.5))
+                bottom_right = (int(x_center + width * 0.5), int(y_center + height * 0.5))
+                self.deviation_x = int(x_center - 400 )
+                self.deviation_y = int(y_center - int(img_size[0]/2))
+
+                if abs(self.deviation_x) < (bottom_right[0]- top_left[0])/4 - 10:
                     self.deviation_x = 0
                 if self.deviation_x > 0:
                     self.direction = 1
-
+                print((bottom_right[0]- top_left[0])/4 - 10)
                 model = true
                 cv2.putText(frame, "x = " + str(self.deviation_x), (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
                 cv2.putText(frame, "y = " + str(self.deviation_y), (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
@@ -163,27 +169,33 @@ class Function:
             
     def send_data(self):
         # 第一次到达时停止，进入第二次判断惯性区间
-        is_arrive = 0
+        # is_arrive = 0
         while 1:
             time.sleep(0.005)
-            if is_arrive == 0:
-                if   Function.SEND_DATA_1 / 100 > 0:
-                    self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
+            # if is_arrive == 0:
+            if   Function.SEND_DATA_1 / 100 > 0:
+                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
 
-                elif Function.SEND_DATA_1 / 10 > 0:
-                    self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
+            elif Function.SEND_DATA_1 / 10 > 0:
+                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
 
-                elif Function.SEND_DATA_1 / 1 > 0:
-                    self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(0) + str(0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
+            elif Function.SEND_DATA_1 / 1 > 0:
+                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(0) + str(0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
 
-                elif Function.DEVIATION_X == 0:
-                    self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
-                    is_arrive = 1
-        
-                else:
-                    self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
-            else :
-                if abs(Function.DEVIATION_X) < 100:
-                    self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
-                else :
-                    is_arrive = 0
+            elif Function.DEVIATION_X == 0:
+                self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
+                # is_arrive = 1
+                
+            else:
+                self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
+            # else :
+                # self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
+                # if abs(Function.DEVIATION_X) < 150:
+                #     self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
+                # else :
+                #     is_arrive = 0
+                
+                # if abs(Function.DEVIATION_X) > 100:
+                    # is_arrive = 0
+            
+            # print('arrive  ', is_arrive)
