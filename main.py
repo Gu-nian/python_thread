@@ -10,7 +10,8 @@ import threading
 # 传入模型位置
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default='/home/oyc/git/enggggg/python_integration/run/weights/best.pt', help='model path(s)')
+    # 自启动 default 要改成绝对路径
+    parser.add_argument('--weights', nargs='+', type=str, default='./best.pt', help='model path(s)')
     opt = parser.parse_args()
     return opt
 
@@ -27,7 +28,6 @@ def run(Video, Fun):
             frame = np.frombuffer(frame_data, dtype=np.uint8)
             frame = frame.reshape((FrameHead.iHeight, FrameHead.iWidth, 1 if FrameHead.uiMediaType == mvsdk.CAMERA_MEDIA_TYPE_MONO8 else 3) )
             
-
             Fun.to_inference(frame, Fun.device, Fun.model, Fun.imgsz, Fun.stride)
 
             t3 = time_sync()
@@ -39,7 +39,7 @@ def run(Video, Fun):
                     print("Write Frame Error")
 
             cv2.imshow("frame",frame)
-            # print("Inference == " + str(1/(t3 - t2)))
+            print("Inference == " + str(1/(t3 - t2)))
         except mvsdk.CameraException as e:
             if e.error_code != mvsdk.CAMERA_STATUS_TIME_OUT:
                 print("CameraGetImageBuffer failed({}): {}".format(e.error_code, e.message) )

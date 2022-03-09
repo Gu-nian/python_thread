@@ -8,7 +8,7 @@ import numpy as np
 class Video_capture:
     COLS = 1280
     ROWS = 800
-    ExposureTime = 4 * 1000
+    ExposureTime = 50 * 1000
     IS_SAVE_VIDEO = 0
     # 相机初始化配置
     def __init__(self,is_save_video = 0):

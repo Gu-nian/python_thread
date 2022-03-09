@@ -40,7 +40,7 @@ class Function:
         self.model = DetectMultiBackend(weights, device=self.device)
         self.stride = self.model.stride 
         # stride, names, pt, jit, onnx, engine = model.stride, model.names, model.pt, model.jit, model.onnx, model.engine
-        self.imgsz = check_img_size((640,640),s=self.stride)
+        self.imgsz = check_img_size((320,320),s=self.stride)
         self.model.model.float()
     
     def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, stride=32):
@@ -81,7 +81,6 @@ class Function:
     def to_inference(self, frame, device, model, imgsz, stride, conf_thres=0.45, iou_thres=0.45):
         img_size = frame.shape
         img0 = frame 
-        # print(type(img0))
         img = Function.letterbox(img0,imgsz,stride=stride)[0]
         img = img.transpose((2,0,1))[::-1]
         img = np.ascontiguousarray(img)
@@ -112,7 +111,7 @@ class Function:
                     line = (cls, *xywh)
                     aim = ('%g ' * len(line)).rstrip() % line 
                     aim = aim.split(' ')
-                    if float(conf) > 0.8:
+                    if float(conf) > 0.4:
                         aims.append(aim)
                         confs.append(float(conf))
 
@@ -146,11 +145,10 @@ class Function:
                 self.deviation_x = int(x_center - 400 )
                 self.deviation_y = int(y_center - int(img_size[0]/2))
 
-                if abs(self.deviation_x) < (bottom_right[0]- top_left[0])/4 - 10:
+                if abs(self.deviation_x) < (bottom_right[0]- top_left[0] - 10)/4:
                     self.deviation_x = 0
                 if self.deviation_x > 0:
                     self.direction = 1
-                print((bottom_right[0]- top_left[0])/4 - 10)
                 model = true
                 cv2.putText(frame, "x = " + str(self.deviation_x), (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
                 cv2.putText(frame, "y = " + str(self.deviation_y), (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
@@ -168,11 +166,8 @@ class Function:
             cv2.putText(frame, ('S' + str(self.direction) + str(self.send_data_0) + str(self.send_data_1) + 'E'), (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
             
     def send_data(self):
-        # 第一次到达时停止，进入第二次判断惯性区间
-        # is_arrive = 0
         while 1:
             time.sleep(0.005)
-            # if is_arrive == 0:
             if   Function.SEND_DATA_1 / 100 > 0:
                 self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
 
@@ -184,18 +179,6 @@ class Function:
 
             elif Function.DEVIATION_X == 0:
                 self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
-                # is_arrive = 1
                 
             else:
                 self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
-            # else :
-                # self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
-                # if abs(Function.DEVIATION_X) < 150:
-                #     self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
-                # else :
-                #     is_arrive = 0
-                
-                # if abs(Function.DEVIATION_X) > 100:
-                    # is_arrive = 0
-            
-            # print('arrive  ', is_arrive)
