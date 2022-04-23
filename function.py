@@ -28,6 +28,7 @@ class Function:
         self.ser.bytesize = 8
         self.ser.parity = 'N'
         self.ser.stopbits = 1
+        self.ser.write_timeout = 0.005
         try:
             self.ser.open()
         except:
@@ -139,7 +140,7 @@ class Function:
                     cv2.putText(frame, tag, top_left, cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 0, 255), 4)
 
                     arr.append(int(x_center - Function.TARGET_X))
-               
+                # 可加一个if判断面积，比例？（1.5 ）
                 if abs(Function.radix_sort(arr)[0]) < abs(Function.radix_sort(arr)[len(arr)-1]):
                     Function.DEVIATION_X = Function.radix_sort(arr)[0]
                 else:
@@ -164,7 +165,6 @@ class Function:
             
     def send_data(self):
         while 1:
-            time.sleep(0.005)
             if Function.DEVIATION_X == 0:
                 self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
                 
