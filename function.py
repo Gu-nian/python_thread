@@ -2,11 +2,8 @@ from pickle import FALSE
 from time import time
 from utils.general import check_img_size
 from utils.torch_utils import select_device
-import math
 import cv2
 import numpy as np
-from sympy import false, true
-import cv2
 import torch
 import numpy as np
 from models.common import DetectMultiBackend
@@ -20,8 +17,8 @@ class Function:
 
     DEVIATION_X = 0
     DIRECTION = 0
-    SEND_DATA_1 = -1
-    SEND_DATA_0 = -1
+    HIGH_EIGHT = -1
+    LOW_EIGHT = -1
     TARGET_X = 400
     def __init__(self,weights):
         self.ser = serial.Serial()
@@ -40,7 +37,6 @@ class Function:
         self.device = select_device('cpu')
         self.model = DetectMultiBackend(weights, device=self.device)
         self.stride = self.model.stride 
-        # stride, names, pt, jit, onnx, engine = model.stride, model.names, model.pt, model.jit, model.onnx, model.engine
         self.imgsz = check_img_size((320,320),s=self.stride)
         self.model.model.float()
     
@@ -101,10 +97,10 @@ class Function:
         img /= 255.
 
         # 每次初始化防止数据未刷新自己走，可能会慢一些
-        # Function.DEVIATION_X = 0
-        # Function.DIRECTION = 0
-        # Function.SEND_DATA_0 = -1
-        # Function.SEND_DATA_1 = -1
+        Function.DEVIATION_X = 0
+        Function.DIRECTION = 0
+        Function.HIGH_EIGHT = -1
+        Function.LOW_EIGHT = -1
 
         if len(img.shape) == 3:
             img = img[None]
@@ -112,19 +108,14 @@ class Function:
         pred = model(img)
         pred = non_max_suppression(pred, conf_thres, iou_thres, agnostic=False)
         aims = []
-        self.direction = 0
-        self.deviation_x = 0
-        self.send_data_0 = -1
-        self.send_data_1 = -1
         confs = []
         arr = []
 
-
-        for i ,det in enumerate(pred):
+        # 可以加个矿石面积判断
+        for i ,det in enumerate(pred): 
             gn = torch.tensor(img0.shape)[[1,0,1,0]]
             if len(det):
                 det[:,:4] = scale_coords(img.shape[2:], det[:, :4],img0.shape).round()
-
                 for *xyxy, conf, cls in reversed(det):
                     xywh = (xyxy2xywh(torch.tensor(xyxy).view(1,4)) / gn).view(-1).tolist()
                     line = (cls, *xywh)
@@ -150,32 +141,26 @@ class Function:
                     arr.append(int(x_center - Function.TARGET_X))
                
                 if abs(Function.radix_sort(arr)[0]) < abs(Function.radix_sort(arr)[len(arr)-1]):
-                    self.deviation_x = Function.radix_sort(arr)[0]
+                    Function.DEVIATION_X = Function.radix_sort(arr)[0]
                 else:
-                    self.deviation_x = Function.radix_sort(arr)[len(arr)-1]
+                    Function.DEVIATION_X = Function.radix_sort(arr)[len(arr)-1]
 
-                cv2.putText(frame, "x = " + str(self.deviation_x), (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
+                cv2.putText(frame, "real_x = " + str(Function.DEVIATION_X), (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
 
-                self.send_data_0 = (self.deviation_x >> 8) & 0xff
-                self.send_data_1 = self.deviation_x & 0xff
+                Function.HIGH_EIGHT = (Function.DEVIATION_X >> 8) & 0xff
+                Function.LOW_EIGHT = Function.DEVIATION_X  & 0xff
 
-                if abs(self.deviation_x) < (bottom_right[0]- top_left[0] - 10)/4:
-                    self.deviation_x = 0
-                if self.deviation_x > 0:
-                    self.direction = 1
+                if abs(Function.DEVIATION_X ) < abs(bottom_right[0]- top_left[0] - 10)/4:
+                    Function.DEVIATION_X  = 0
+                if Function.DEVIATION_X > 0:
+                    Function.DIRECTION = 1
 
-                cv2.putText(frame, "x = " + str(self.deviation_x), (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
+                cv2.putText(frame, "judge_x = " + str(Function.DEVIATION_X), (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
 
-            cv2.line(frame, (0, int(img_size[0] * 0.5)), (int(img_size[1]), int(img_size[0] * 0.5)), (255, 0, 255), 3)
             cv2.line(frame, (Function.TARGET_X, 0), (Function.TARGET_X, int(img_size[0])), (255, 0, 255), 3)
-
-            # 可考虑在上面先初始化一遍，这样子不会数据没刷新就走，但是这样子感觉多线程没有用了，等车出来可以试试
-            Function.DEVIATION_X = self.deviation_x
-            Function.DIRECTION = self.direction
-            Function.SEND_DATA_0 = self.send_data_0
-            Function.SEND_DATA_1 = self.send_data_1
-
-            cv2.putText(frame, ('S' + str(self.direction) + str(self.send_data_0) + str(self.send_data_1) + 'E'), (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
+            cv2.putText(frame, ('direction: ' + str(Function.DIRECTION)), (0, 160), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
+            cv2.putText(frame, ('high_eight: ' + str(Function.HIGH_EIGHT)), (0, 210), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
+            cv2.putText(frame, ('low_eight: ' + str(Function.LOW_EIGHT)), (0, 260), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
             
     def send_data(self):
         while 1:
@@ -183,14 +168,14 @@ class Function:
             if Function.DEVIATION_X == 0:
                 self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
                 
-            elif   Function.SEND_DATA_1 / 100 > 0:
-                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
+            elif   Function.LOW_EIGHT / 100 > 0:
+                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
 
-            elif Function.SEND_DATA_1 / 10 > 0:
-                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
+            elif Function.LOW_EIGHT / 10 > 0:
+                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(0) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
 
-            elif Function.SEND_DATA_1 / 1 > 0:
-                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.SEND_DATA_0) + str(0) + str(0) + str(Function.SEND_DATA_1) + 'E').encode("utf-8"))
+            elif Function.LOW_EIGHT / 1 > 0:
+                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(0) + str(0) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
 
             else:
                 self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
