@@ -98,6 +98,7 @@ class Function:
         img = img.float()
         img /= 255.
 
+        self.store_frame = frame
         # 每次初始化防止数据未刷新自己走，可能会慢一些
         Function.DEVIATION_X = 0
         Function.DIRECTION = 0
@@ -124,6 +125,7 @@ class Function:
                     aim = ('%g ' * len(line)).rstrip() % line 
                     aim = aim.split(' ')
                     if float(conf) > 0.7:
+                        Function.store_image()
                         aims.append(aim)
                         confs.append(float(conf))
 
@@ -141,7 +143,7 @@ class Function:
                     cv2.putText(frame, tag, top_left, cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 0, 255), 4)
 
                     arr.append(int(x_center - Function.TARGET_X))
-                # 可加一个if判断面积，比例？（1.5 ）
+
                 if abs(Function.radix_sort(arr)[0]) < abs(Function.radix_sort(arr)[len(arr)-1]):
                     Function.DEVIATION_X = Function.radix_sort(arr)[0]
                 else:
@@ -199,3 +201,8 @@ class Function:
                 Function.TARGET_X = 415  #资源岛
                 print(data)
             # print(data)
+
+
+    def store_image(self):
+        time_name = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+        cv2.imwrite("./Image/"+time_name+".jpg",self.store_frame)
