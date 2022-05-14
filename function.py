@@ -17,9 +17,10 @@ class Function:
 
     DEVIATION_X = 0
     DIRECTION = 0
-    HIGH_EIGHT = -1
-    LOW_EIGHT = -1
-    TARGET_X = 400
+    HIGH_EIGHT = 0
+    LOW_EIGHT = 0
+    TARGET_X = 513  #空接
+    # TARGET_X = 425  #资源岛
     def __init__(self,weights):
         self.ser = serial.Serial()
         self.ser.port = "/dev/ttyUSB0"
@@ -28,7 +29,7 @@ class Function:
         self.ser.bytesize = 8
         self.ser.parity = 'N'
         self.ser.stopbits = 1
-        self.ser.write_timeout = 0.005
+        
         try:
             self.ser.open()
         except:
@@ -100,8 +101,8 @@ class Function:
         # 每次初始化防止数据未刷新自己走，可能会慢一些
         Function.DEVIATION_X = 0
         Function.DIRECTION = 0
-        Function.HIGH_EIGHT = -1
-        Function.LOW_EIGHT = -1
+        Function.HIGH_EIGHT = 0
+        Function.LOW_EIGHT = 0
 
         if len(img.shape) == 3:
             img = img[None]
@@ -122,7 +123,7 @@ class Function:
                     line = (cls, *xywh)
                     aim = ('%g ' * len(line)).rstrip() % line 
                     aim = aim.split(' ')
-                    if float(conf) > 0.4:
+                    if float(conf) > 0.7:
                         aims.append(aim)
                         confs.append(float(conf))
 
@@ -151,8 +152,12 @@ class Function:
                 Function.HIGH_EIGHT = (Function.DEVIATION_X >> 8) & 0xff
                 Function.LOW_EIGHT = Function.DEVIATION_X  & 0xff
 
-                if abs(Function.DEVIATION_X ) < abs(bottom_right[0]- top_left[0] - 10)/4:
-                    Function.DEVIATION_X  = 0
+                if Function.TARGET_X == 525:
+                    if abs(Function.DEVIATION_X ) < abs(bottom_right[0]- top_left[0] - 100)/4:
+                        Function.DEVIATION_X  = 0
+                else :
+                    if abs(Function.DEVIATION_X ) < abs(bottom_right[0]- top_left[0] - 200)/4:
+                        Function.DEVIATION_X  = 0
                 if Function.DEVIATION_X > 0:
                     Function.DIRECTION = 1
 
@@ -165,18 +170,32 @@ class Function:
             
     def send_data(self):
         while 1:
+            time.sleep(0.005)
             if Function.DEVIATION_X == 0:
                 self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
                 
             elif   Function.LOW_EIGHT / 100 > 0:
                 self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
+                # print("  {}  {}  {}  ".format(str(Function.DIRECTION), str(Function.HIGH_EIGHT), str(Function.LOW_EIGHT)))
 
             elif Function.LOW_EIGHT / 10 > 0:
                 self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(0) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
+                # print("  {}  {}  {}  ".format(str(Function.DIRECTION), str(Function.HIGH_EIGHT), str(Function.LOW_EIGHT)))
 
             elif Function.LOW_EIGHT / 1 > 0:
                 self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(0) + str(0) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
+                # print("  {}  {}  {}  ".format(str(Function.DIRECTION), str(Function.HIGH_EIGHT), str(Function.LOW_EIGHT)))
 
             else:
                 self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
-        
+
+    def receive_data(self):
+        while 1:
+            data = self.ser.read(3)
+            if data == b'\x03"E':
+                Function.TARGET_X = 518  #空接
+                print(data)
+            if data == b'\x04"E':
+                Function.TARGET_X = 415  #资源岛
+                print(data)
+            # print(data)
