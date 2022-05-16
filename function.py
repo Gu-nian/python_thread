@@ -19,8 +19,8 @@ class Function:
     DIRECTION = 0
     HIGH_EIGHT = 0
     LOW_EIGHT = 0
-    TARGET_X = 513  #空接
-    # TARGET_X = 425  #资源岛
+    TARGET_X = 518
+
     def __init__(self,weights):
         self.ser = serial.Serial()
         self.ser.port = "/dev/ttyUSB0"
