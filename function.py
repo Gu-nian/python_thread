@@ -19,7 +19,8 @@ class Function:
     DIRECTION = 0
     HIGH_EIGHT = 0
     LOW_EIGHT = 0
-    TARGET_X = 518
+    TARGET_X = 0
+    FLAG = 1
 
     def __init__(self,weights):
         self.ser = serial.Serial()
@@ -88,7 +89,7 @@ class Function:
         return im, ratio, (dw, dh)
 
     # 进行推理 绘制图像 结算出最优 发送数据
-    def to_inference(self, frame, device, model, imgsz, stride, conf_thres=0.45, iou_thres=0.45):
+    def to_inference(self, frame, device, model, imgsz, stride,store_mode = 0, conf_thres=0.45, iou_thres=0.45):
         img_size = frame.shape
         img0 = frame 
         img = Function.letterbox(img0,imgsz,stride=stride)[0]
@@ -125,7 +126,6 @@ class Function:
                     aim = ('%g ' * len(line)).rstrip() % line 
                     aim = aim.split(' ')
                     if float(conf) > 0.7:
-                        Function.store_image()
                         aims.append(aim)
                         confs.append(float(conf))
 
@@ -149,26 +149,26 @@ class Function:
                 else:
                     Function.DEVIATION_X = Function.radix_sort(arr)[len(arr)-1]
 
-                cv2.putText(frame, "real_x = " + str(Function.DEVIATION_X), (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
+                cv2.putText(frame, "real_x = " + str(Function.DEVIATION_X), (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
 
-                Function.HIGH_EIGHT = (Function.DEVIATION_X >> 8) & 0xff
-                Function.LOW_EIGHT = Function.DEVIATION_X  & 0xff
+                Function.HIGH_EIGHT = (abs(Function.DEVIATION_X) >> 8) & 0xff
+                Function.LOW_EIGHT = abs(Function.DEVIATION_X)  & 0xff
 
-                if Function.TARGET_X == 525:
-                    if abs(Function.DEVIATION_X ) < abs(bottom_right[0]- top_left[0] - 100)/4:
+                if Function.FLAG == 1:
+                    if abs(Function.DEVIATION_X ) < 28:
                         Function.DEVIATION_X  = 0
                 else :
-                    if abs(Function.DEVIATION_X ) < abs(bottom_right[0]- top_left[0] - 200)/4:
+                    if abs(Function.DEVIATION_X ) < 28:
                         Function.DEVIATION_X  = 0
                 if Function.DEVIATION_X > 0:
                     Function.DIRECTION = 1
 
-                cv2.putText(frame, "judge_x = " + str(Function.DEVIATION_X), (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
+                cv2.putText(frame, "judge_x = " + str(Function.DEVIATION_X), (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
 
             cv2.line(frame, (Function.TARGET_X, 0), (Function.TARGET_X, int(img_size[0])), (255, 0, 255), 3)
-            cv2.putText(frame, ('direction: ' + str(Function.DIRECTION)), (0, 160), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
-            cv2.putText(frame, ('high_eight: ' + str(Function.HIGH_EIGHT)), (0, 210), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
-            cv2.putText(frame, ('low_eight: ' + str(Function.LOW_EIGHT)), (0, 260), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
+            cv2.putText(frame, ('direction: ' + str(Function.DIRECTION)), (0, 160), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+            cv2.putText(frame, ('high_eight: ' + str(Function.HIGH_EIGHT)), (0, 210), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+            cv2.putText(frame, ('low_eight: ' + str(Function.LOW_EIGHT)), (0, 260), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
             
     def send_data(self):
         while 1:
@@ -176,17 +176,14 @@ class Function:
             if Function.DEVIATION_X == 0:
                 self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
                 
-            elif   Function.LOW_EIGHT / 100 > 0:
+            elif   Function.LOW_EIGHT / 100 >= 1:
                 self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
-                # print("  {}  {}  {}  ".format(str(Function.DIRECTION), str(Function.HIGH_EIGHT), str(Function.LOW_EIGHT)))
 
-            elif Function.LOW_EIGHT / 10 > 0:
+            elif Function.LOW_EIGHT / 10 >= 1:
                 self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(0) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
-                # print("  {}  {}  {}  ".format(str(Function.DIRECTION), str(Function.HIGH_EIGHT), str(Function.LOW_EIGHT)))
 
-            elif Function.LOW_EIGHT / 1 > 0:
+            elif Function.LOW_EIGHT / 1 >= 1:
                 self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(0) + str(0) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
-                # print("  {}  {}  {}  ".format(str(Function.DIRECTION), str(Function.HIGH_EIGHT), str(Function.LOW_EIGHT)))
 
             else:
                 self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
@@ -194,15 +191,13 @@ class Function:
     def receive_data(self):
         while 1:
             data = self.ser.read(3)
-            if data == b'\x03"E':
-                Function.TARGET_X = 518  #空接
-                print(data)
-            if data == b'\x04"E':
+            if data == b'\x03\x03\x03' or data == b'\x01\x01\x01':
+                Function.TARGET_X = 500  #空接488
+                Function.FLAG = 1
+                # print(data)
+            if data == b'\x02\x02\x02':
                 Function.TARGET_X = 415  #资源岛
-                print(data)
-            # print(data)
+                Function.FLAG = 0
+                # print(data)
+            print(data)
 
-
-    def store_image(self):
-        time_name = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
-        cv2.imwrite("./Image/"+time_name+".jpg",self.store_frame)
