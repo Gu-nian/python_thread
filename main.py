@@ -12,11 +12,14 @@ def parse_opt():
     parser = argparse.ArgumentParser()
     # 自启动 default 要改成绝对路径
     parser.add_argument('--weights', nargs='+', type=str, default='/home/oyc/workspace/python_thread/best (3).pt', help='model path(s)')
+    parser.add_argument('--is_store', nargs='+', type=int, default= 0 , help='0 NO 1 YES')
+    parser.add_argument('--store_mode', nargs='+', type=int, default=0 , help='0 deal with frame 1 original frame')
     opt = parser.parse_args()
     return opt
 
-
-def run(Video, Fun):
+# mode = 0 为处理后的图像 
+# mode = 1 为原图
+def run(Video, Fun, mode = 0):
     
     while (cv2.waitKey(1) & 0xFF) != ord('q'):
         try:
@@ -34,11 +37,15 @@ def run(Video, Fun):
 
             if Video.IS_SAVE_VIDEO:
                 try:
-                    Video.out.write(frame)
+                    if mode == 0:
+                        Video.out.write(frame)
+                        cv2.imshow("frame",frame)
+                    else :
+                        Video.out.write(Fun.store_frame)
+                        cv2.imshow("store_frame",Fun.store_frame)
                 except:
                     print("Write Frame Error")
 
-            cv2.imshow("frame",frame)
             print("Inference == " + str(1/(t3 - t2)))
         except mvsdk.CameraException as e:
             if e.error_code != mvsdk.CAMERA_STATUS_TIME_OUT:
@@ -51,20 +58,19 @@ def run(Video, Fun):
     cv2.destroyAllWindows()
     # 关闭相机
     mvsdk.CameraUnInit(Video.hCamera)
-
     # 释放帧缓存
     mvsdk.CameraAlignFree(Video.pFrameBuffer)
     
 
 if __name__ == "__main__":
     opt = parse_opt()
-    Video = video_capture.Video_capture(1)
+    # 0 不储存图像
+    # 1 储存图像
+    Video = video_capture.Video_capture(**vars(opt))
     Fun = function.Function(**vars(opt))
 
-    # thread1 = threading.Thread(target=run,args=(Video, Fun, ))
     thread2 = threading.Thread(target=(Fun.send_data),daemon=True)
 
-    # thread1.start()
     thread2.start()
-    run(Video,Fun)
+    run(Video,Fun,**vars(opt))
 
