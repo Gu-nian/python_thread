@@ -11,14 +11,12 @@ import threading
 def parse_opt():
     parser = argparse.ArgumentParser()
     # 自启动 default 要改成绝对路径
-    parser.add_argument('--weights', nargs='+', type=str, default='/home/oyc/workspace/python_thread/best (3).pt', help='model path(s)')
-    parser.add_argument('--is_store', nargs='+', type=int, default= 0 , help='0 NO 1 YES')
-    parser.add_argument('--store_mode', nargs='+', type=int, default=0 , help='0 deal with frame 1 original frame')
+    parser.add_argument('--weights', nargs='+', type=str, default='/home/wolfvision-nuc01/python_thread/best (3).pt', help='model path(s)')
     opt = parser.parse_args()
     return opt
 
-# mode = 0 为处理后的图像 
-# mode = 1 为原图
+# mode = 0 为原图
+# mode = 1 为处理后的图像 
 def run(Video, Fun, mode = 0):
     
     while (cv2.waitKey(1) & 0xFF) != ord('q'):
@@ -31,22 +29,17 @@ def run(Video, Fun, mode = 0):
             frame = np.frombuffer(frame_data, dtype=np.uint8)
             frame = frame.reshape((FrameHead.iHeight, FrameHead.iWidth, 1 if FrameHead.uiMediaType == mvsdk.CAMERA_MEDIA_TYPE_MONO8 else 3) )
             
-            Fun.to_inference(frame, Fun.device, Fun.model, Fun.imgsz, Fun.stride)
+            Fun.to_inference(frame, Fun.device, Fun.model, Fun.imgsz, Fun.stride, mode=mode)
 
             t3 = time_sync()
 
             if Video.IS_SAVE_VIDEO:
-                try:
-                    if mode == 0:
-                        Video.out.write(frame)
-                        cv2.imshow("frame",frame)
-                    else :
-                        Video.out.write(Fun.store_frame)
-                        cv2.imshow("store_frame",Fun.store_frame)
+                try:                    
+                    Video.out.write(frame)
                 except:
                     print("Write Frame Error")
-
-            print("Inference == " + str(1/(t3 - t2)))
+            cv2.imshow("frame",frame)
+            # print("Inference == " + str(1/(t3 - t2)))
         except mvsdk.CameraException as e:
             if e.error_code != mvsdk.CAMERA_STATUS_TIME_OUT:
                 print("CameraGetImageBuffer failed({}): {}".format(e.error_code, e.message) )
@@ -66,11 +59,12 @@ if __name__ == "__main__":
     opt = parse_opt()
     # 0 不储存图像
     # 1 储存图像
-    Video = video_capture.Video_capture(**vars(opt))
+    Video = video_capture.Video_capture(1)
     Fun = function.Function(**vars(opt))
 
+    thread1 = threading.Thread(target=(Fun.receive_data),daemon=True)
     thread2 = threading.Thread(target=(Fun.send_data),daemon=True)
-
+    thread1.start()
     thread2.start()
-    run(Video,Fun,**vars(opt))
+    run(Video,Fun,1)
 
