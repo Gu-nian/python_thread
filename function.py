@@ -25,15 +25,14 @@ class Function:
     def __init__(self,weights):
         self.ser = serial.Serial()
         self.ser.port = "/dev/ttyUSB0"
-        # self.ser.baudrate = 115200
         self.ser.baudrate = 921600
         self.ser.bytesize = 8
         self.ser.parity = 'N'
         self.ser.stopbits = 1
-        
         try:
             self.ser.open()
         except:
+            self.ser.close()
             print("Serial Open Error")
 
         # 加载模型
@@ -137,9 +136,9 @@ class Function:
                     top_right = (int(x_center + width * 0.5), int(y_center - height * 0.5))
                     bottom_right = (int(x_center + width * 0.5), int(y_center + height * 0.5))
 
-                    Function.draw_inference(frame, top_left, top_right, bottom_right, mode)
+                    Function.draw_inference(frame, top_left, top_right, bottom_right, tag, confs, i, mode)
 
-                    arr.append(int(x_center - Function.TARGET_X))
+                    arr.append(int(x_center - Function.TARGET_X)) 
 
                 if abs(Function.radix_sort(arr)[0]) < abs(Function.radix_sort(arr)[len(arr)-1]):
                     Function.DEVIATION_X = Function.radix_sort(arr)[0]
@@ -153,58 +152,83 @@ class Function:
                 Function.LOW_EIGHT = abs(Function.DEVIATION_X)  & 0xff
 
                 if Function.FLAG == 1:
-                    if abs(Function.DEVIATION_X ) < 28:
+                    if abs(Function.DEVIATION_X ) < 24:
                         Function.DEVIATION_X  = 0
                 else :
-                    if abs(Function.DEVIATION_X ) < 28:
+                    if abs(Function.DEVIATION_X ) < 24:
                         Function.DEVIATION_X  = 0
                 if Function.DEVIATION_X > 0:
                     Function.DIRECTION = 1
 
             Function.draw_data(frame, img_size, mode)
-            
-            
+
+    def serial_connection(self):
+        self.ser.port = "/dev/ttyUSB0"
+        self.ser.baudrate = 921600
+        self.ser.bytesize = 8
+        self.ser.parity = 'N'
+        self.ser.stopbits = 1
+        try:
+            self.ser.open()
+            print('Open')
+        except:
+            print("Serial Open Error")
+
     def send_data(self):
         while 1:
             time.sleep(0.0005)
-            if Function.DEVIATION_X == 0:
-                self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
+            try:
+                if Function.DEVIATION_X == 0:
+                    self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
+                    
+                elif   Function.LOW_EIGHT / 100 >= 1:
+                    self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
+
+                elif Function.LOW_EIGHT / 10 >= 1:
+                    self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(0) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
+
+                elif Function.LOW_EIGHT / 1 >= 1:
+                    self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(0) + str(0) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
+
+                else:
+                    self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
+            except:
+                print('Serial Send Data Error')
+                self.ser.close()
+                Function.serial_connection(self)
                 
-            elif   Function.LOW_EIGHT / 100 >= 1:
-                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
-
-            elif Function.LOW_EIGHT / 10 >= 1:
-                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(0) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
-
-            elif Function.LOW_EIGHT / 1 >= 1:
-                self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(0) + str(0) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
-
-            else:
-                self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
 
     def receive_data(self):
         while 1:
-            data = self.ser.read(3)
-            if data == b'\x03\x03\x03' or data == b'\x01\x01\x01':
-                Function.TARGET_X = 530  #空接500
-                Function.FLAG = 1
-                # print(data)
-            if data == b'\x02\x02\x02':
-                Function.TARGET_X = 415  #资源岛
-                Function.FLAG = 0
-                # print(data)
-            print(data)
+            time.sleep(0.05)
+            try:
+                data = self.ser.read(3)
+                if data == b'\x03\x03\x03' or data == b'\x01\x01\x01':
+                    Function.TARGET_X = 480  #空接 不抬升500 抬升480 
+                    Function.FLAG = 1
+                    # print(data)
+                if data == b'\x02\x02\x02':
+                    Function.TARGET_X = 415  #资源岛
+                    Function.FLAG = 0
+                    # print(data)
+                print(data)
+            except:
+                print('Receive Data Error')
+                self.ser.close()
+                Function.serial_connection(self)
+                
+                
 
-    def draw_inference(frame, top_left, top_right, bottom_right, mode = 1):
+    def draw_inference(frame, top_left, top_right, bottom_right, tag, confs, i, mode = 1):
         if mode == 1:
             cv2.rectangle(frame, top_left, bottom_right, (0, 255, 255), 3, 8)
             cv2.putText(frame,str(float(round(confs[i], 2))), top_right, cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
             cv2.putText(frame, tag, top_left, cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 0, 255), 4)
-
+ 
     def draw_data(frame, img_size, mode = 1):
         if mode == 1:
             cv2.putText(frame, "judge_x = " + str(Function.DEVIATION_X), (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
             cv2.line(frame, (Function.TARGET_X, 0), (Function.TARGET_X, int(img_size[0])), (255, 0, 255), 3)
-            cv2.putText(frame, ('direction: ' + str(Function.DIRECTION)), (0, 160), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
-            cv2.putText(frame, ('high_eight: ' + str(Function.HIGH_EIGHT)), (0, 210), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
-            cv2.putText(frame, ('low_eight: ' + str(Function.LOW_EIGHT)), (0, 260), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+            cv2.putText(frame, 'direction: ' + str(Function.DIRECTION), (0, 160), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+            cv2.putText(frame, 'high_eight: ' + str(Function.HIGH_EIGHT), (0, 210), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+            cv2.putText(frame, 'low_eight: ' + str(Function.LOW_EIGHT), (0, 260), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
