@@ -1,11 +1,14 @@
-import video_capture  
-import function
-import cv2
-import numpy as np
-import mvsdk
-from utils.torch_utils import time_sync
 import argparse
 import threading
+import numpy as np
+
+import cv2
+
+import video_capture  
+import mvsdk
+from to_inference import Inference
+from utils.torch_utils import time_sync
+from use_serial import Interactive_serial
 
 # 传入模型位置
 def parse_opt():
@@ -15,7 +18,7 @@ def parse_opt():
     opt = parser.parse_args()
     return opt
 
-def run(Video, Fun, is_save = 0, mode = 0):
+def run(Video, Inference, is_save = 0, mode = 0):
     
     while (cv2.waitKey(1) & 0xFF) != ord('q'):
         try:
@@ -27,7 +30,7 @@ def run(Video, Fun, is_save = 0, mode = 0):
             frame = np.frombuffer(frame_data, dtype=np.uint8)
             frame = frame.reshape((FrameHead.iHeight, FrameHead.iWidth, 1 if FrameHead.uiMediaType == mvsdk.CAMERA_MEDIA_TYPE_MONO8 else 3) )
             
-            Fun.to_inference(frame, Fun.device, Fun.model, Fun.imgsz, Fun.stride, mode=mode)
+            Inference.to_Inference(frame, Inference.device, Inference.model, Inference.imgsz, Inference.stride, mode=mode)
             
             t3 = time_sync()
 
@@ -74,13 +77,13 @@ if __name__ == "__main__":
     while video_capture.Video_capture.CAMERA_OPEN == 0:
         Video = video_capture.Video_capture(is_save)
 
-    Fun = function.Function(**vars(opt))
+    Inf = Inference.to_inference(**vars(opt))
     
-    thread1 = threading.Thread(target=(Fun.receive_data),daemon=True)
-    thread2 = threading.Thread(target=(Fun.send_data),daemon=True)
+    thread1 = threading.Thread(target=(Interactive_serial.receive_data),daemon=True)
+    thread2 = threading.Thread(target=(Interactive_serial.send_data),daemon=True)
     thread1.start()
     thread2.start()
     
-    run(Video,Fun,is_save,mode)
+    run(Video,Inf,is_save,mode)
 
     

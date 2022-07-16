@@ -1,19 +1,15 @@
 from pickle import FALSE
-from time import time
-from utils.general import check_img_size
-from utils.torch_utils import select_device
+from typing import List
+
 import cv2
 import numpy as np
 import torch
-import numpy as np
+
 from models.common import DetectMultiBackend
 from utils.general import check_img_size,non_max_suppression,scale_coords, xyxy2xywh
 from utils.torch_utils import select_device
-import serial
-import time
-from typing import List
 
-class Function:
+class Inference(object):
 
     DEVIATION_X = 0
     DIRECTION = 0
@@ -23,18 +19,6 @@ class Function:
     FLAG = 1
 
     def __init__(self,weights):
-        self.ser = serial.Serial()
-        self.ser.port = "/dev/ttyUSB0"
-        self.ser.baudrate = 921600
-        self.ser.bytesize = 8
-        self.ser.parity = 'N'
-        self.ser.stopbits = 1
-        try:
-            self.ser.open()
-        except:
-            self.ser.close()
-            print("Serial Open Error")
-
         # 加载模型
         self.device = select_device('cpu')
         self.model = DetectMultiBackend(weights, device=self.device)
@@ -91,7 +75,7 @@ class Function:
     def to_inference(self, frame, device, model, imgsz, stride,mode = 1, conf_thres=0.45, iou_thres=0.45):
         img_size = frame.shape
         img0 = frame 
-        img = Function.letterbox(img0,imgsz,stride=stride)[0]
+        img = Inference.letterbox(img0,imgsz,stride=stride)[0]
         img = img.transpose((2,0,1))[::-1]
         img = np.ascontiguousarray(img)
         img = torch.from_numpy(img).to(device)
@@ -99,10 +83,10 @@ class Function:
         img /= 255.
 
         # 每次初始化防止数据未刷新自己走，可能会慢一些
-        Function.DEVIATION_X = 0
-        Function.DIRECTION = 0
-        Function.HIGH_EIGHT = 0
-        Function.LOW_EIGHT = 0
+        Inference.DEVIATION_X = 0
+        Inference.DIRECTION = 0
+        Inference.HIGH_EIGHT = 0
+        Inference.LOW_EIGHT = 0
 
         if len(img.shape) == 3:
             img = img[None]
@@ -136,99 +120,42 @@ class Function:
                     top_right = (int(x_center + width * 0.5), int(y_center - height * 0.5))
                     bottom_right = (int(x_center + width * 0.5), int(y_center + height * 0.5))
 
-                    Function.draw_inference(frame, top_left, top_right, bottom_right, tag, confs, i, mode)
+                    Inference.draw_inference(frame, top_left, top_right, bottom_right, tag, confs, i, mode)
 
-                    arr.append(int(x_center - Function.TARGET_X)) 
+                    arr.append(int(x_center - Inference.TARGET_X)) 
 
-                if abs(Function.radix_sort(arr)[0]) < abs(Function.radix_sort(arr)[len(arr)-1]):
-                    Function.DEVIATION_X = Function.radix_sort(arr)[0]
+                if abs(Inference.radix_sort(arr)[0]) < abs(Inference.radix_sort(arr)[len(arr)-1]):
+                    Inference.DEVIATION_X = Inference.radix_sort(arr)[0]
                 else:
-                    Function.DEVIATION_X = Function.radix_sort(arr)[len(arr)-1]
+                    Inference.DEVIATION_X = Inference.radix_sort(arr)[len(arr)-1]
 
-                if mode == 1:
-                    cv2.putText(frame, "real_x = " + str(Function.DEVIATION_X), (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+                if mode == True:
+                    cv2.putText(frame, "real_x = " + str(Inference.DEVIATION_X), (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
 
-                Function.HIGH_EIGHT = (abs(Function.DEVIATION_X) >> 8) & 0xff
-                Function.LOW_EIGHT = abs(Function.DEVIATION_X)  & 0xff
+                Inference.HIGH_EIGHT = (abs(Inference.DEVIATION_X) >> 8) & 0xff
+                Inference.LOW_EIGHT = abs(Inference.DEVIATION_X)  & 0xff
 
-                if Function.FLAG == 1:
-                    if abs(Function.DEVIATION_X ) < 24:
-                        Function.DEVIATION_X  = 0
+                if Inference.FLAG == 1:
+                    if abs(Inference.DEVIATION_X ) < 24:
+                        Inference.DEVIATION_X  = 0
                 else :
-                    if abs(Function.DEVIATION_X ) < 24:
-                        Function.DEVIATION_X  = 0
-                if Function.DEVIATION_X > 0:
-                    Function.DIRECTION = 1
+                    if abs(Inference.DEVIATION_X ) < 24:
+                        Inference.DEVIATION_X  = 0
+                if Inference.DEVIATION_X > 0:
+                    Inference.DIRECTION = 1
 
-            Function.draw_data(frame, img_size, mode)
-
-    def serial_connection(self):
-        self.ser.port = "/dev/ttyUSB0"
-        self.ser.baudrate = 921600
-        self.ser.bytesize = 8
-        self.ser.parity = 'N'
-        self.ser.stopbits = 1
-        try:
-            self.ser.open()
-            print('Open')
-        except:
-            print("Serial Open Error")
-
-    def send_data(self):
-        while 1:
-            time.sleep(0.0005)
-            try:
-                if Function.DEVIATION_X == 0:
-                    self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
-                    
-                elif   Function.LOW_EIGHT / 100 >= 1:
-                    self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
-
-                elif Function.LOW_EIGHT / 10 >= 1:
-                    self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(0) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
-
-                elif Function.LOW_EIGHT / 1 >= 1:
-                    self.ser.write(('S' + str(Function.DIRECTION) + str(Function.HIGH_EIGHT) + str(0) + str(0) + str(Function.LOW_EIGHT) + 'E').encode("utf-8"))
-
-                else:
-                    self.ser.write(('S' + str(2) + str(0) + str(0) + str(0) + str(0) + 'E').encode("utf-8"))
-            except:
-                print('Serial Send Data Error')
-                self.ser.close()
-                Function.serial_connection(self)
-                
-
-    def receive_data(self):
-        while 1:
-            time.sleep(0.05)
-            try:
-                data = self.ser.read(3)
-                if data == b'\x03\x03\x03' or data == b'\x01\x01\x01':
-                    Function.TARGET_X = 480  #空接 不抬升500 抬升480 
-                    Function.FLAG = 1
-                    # print(data)
-                if data == b'\x02\x02\x02':
-                    Function.TARGET_X = 415  #资源岛
-                    Function.FLAG = 0
-                    # print(data)
-                print(data)
-            except:
-                print('Receive Data Error')
-                self.ser.close()
-                Function.serial_connection(self)
-                
-                
+            Inference.draw_data(frame, img_size, mode)
 
     def draw_inference(frame, top_left, top_right, bottom_right, tag, confs, i, mode = 1):
-        if mode == 1:
+        if mode == True:
             cv2.rectangle(frame, top_left, bottom_right, (0, 255, 255), 3, 8)
             cv2.putText(frame,str(float(round(confs[i], 2))), top_right, cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
             cv2.putText(frame, tag, top_left, cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 0, 255), 4)
  
     def draw_data(frame, img_size, mode = 1):
-        if mode == 1:
-            cv2.putText(frame, "judge_x = " + str(Function.DEVIATION_X), (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
-            cv2.line(frame, (Function.TARGET_X, 0), (Function.TARGET_X, int(img_size[0])), (255, 0, 255), 3)
-            cv2.putText(frame, 'direction: ' + str(Function.DIRECTION), (0, 160), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
-            cv2.putText(frame, 'high_eight: ' + str(Function.HIGH_EIGHT), (0, 210), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
-            cv2.putText(frame, 'low_eight: ' + str(Function.LOW_EIGHT), (0, 260), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+        if mode == True:
+            cv2.putText(frame, "judge_x = " + str(Inference.DEVIATION_X), (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+            cv2.line(frame, (Inference.TARGET_X, 0), (Inference.TARGET_X, int(img_size[0])), (255, 0, 255), 3)
+            cv2.putText(frame, 'direction: ' + str(Inference.DIRECTION), (0, 160), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+            cv2.putText(frame, 'high_eight: ' + str(Inference.HIGH_EIGHT), (0, 210), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+            cv2.putText(frame, 'low_eight: ' + str(Inference.LOW_EIGHT), (0, 260), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
