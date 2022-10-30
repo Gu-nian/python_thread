@@ -10,6 +10,7 @@ class Video_capture:
     ROWS = 800
     ExposureTime = 3 * 1000
     IS_SAVE_VIDEO = 0
+    # 判断相机是否掉线
     CAMERA_OPEN = 0
     # 相机初始化配置
     def __init__(self,is_save_video = 0):

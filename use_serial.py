@@ -16,7 +16,7 @@ class Interactive_serial(object):
         except:
             self.ser.close()
             print("Serial Open Error")
-
+    # 串口掉线重连
     def serial_connection(self):
         self.ser.port = "/dev/ttyUSB0"
         self.ser.baudrate = 921600
@@ -29,7 +29,7 @@ class Interactive_serial(object):
         except:
             self.ser.close()
             print("Serial Reconnection Error")
-
+    # 串口发送移动信息
     def send_data(self):
         while True:
             time.sleep(0.0005)
@@ -51,25 +51,25 @@ class Interactive_serial(object):
             except:
                 self.ser.close()
                 print('Serial Send Data Error')
-                Inference.serial_connection(self)
+                Interactive_serial.serial_connection(self)
                 
-
-    def receive_data(self):
-        while True:
-            time.sleep(0.05)
-            try:
-                data = self.ser.read(3)
-                if data == b'\x03\x03\x03' or data == b'\x01\x01\x01':
-                    Inference.TARGET_X = 480  #空接 不抬升500 抬升480 
-                    Inference.FLAG = 1
-                    # print(data)
-                if data == b'\x02\x02\x02':
-                    Inference.TARGET_X = 415  #资源岛
-                    Inference.FLAG = 0
-                    # print(data)
-                print(data)
-            except:                
-                self.ser.close()
-                print('Serial Send Data Error')
-                Inference.serial_connection(self)
+    # 串口接收数据
+    # def receive_data(self):
+    #     while True:
+    #         time.sleep(0.05)
+    #         try:
+    #             data = self.ser.read(3)
+    #             if data == b'\x03\x03\x03' or data == b'\x01\x01\x01':
+    #                 Inference.TARGET_X = 480  #空接 不抬升500 抬升480 
+    #                 Inference.FLAG = 1
+    #                 # print(data)
+    #             if data == b'\x02\x02\x02':
+    #                 Inference.TARGET_X = 415  #资源岛
+    #                 Inference.FLAG = 0
+    #                 # print(data)
+    #             print(data)
+    #         except:                
+    #             self.ser.close()
+    #             print('Serial Send Data Error')
+    #             Inference.serial_connection(self)
                 

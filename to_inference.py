@@ -15,7 +15,9 @@ class Inference(object):
     DIRECTION = 0
     HIGH_EIGHT = 0
     LOW_EIGHT = 0
+    # 目标位置
     TARGET_X = 0
+    # 判断夹矿方式
     FLAG = 1
 
     def __init__(self,weights):
@@ -97,7 +99,6 @@ class Inference(object):
         confs = []
         arr = []
 
-        # 可以加个矿石面积判断
         for i ,det in enumerate(pred): 
             gn = torch.tensor(img0.shape)[[1,0,1,0]]
             if len(det):
@@ -107,6 +108,7 @@ class Inference(object):
                     line = (cls, *xywh)
                     aim = ('%g ' * len(line)).rstrip() % line 
                     aim = aim.split(' ')
+                    # 筛选出自信度大于70%
                     if float(conf) > 0.7:
                         aims.append(aim)
                         confs.append(float(conf))
@@ -121,9 +123,9 @@ class Inference(object):
                     bottom_right = (int(x_center + width * 0.5), int(y_center + height * 0.5))
 
                     Inference.draw_inference(frame, top_left, top_right, bottom_right, tag, confs, i, mode)
-
+                    # 计算出矿石位置与目标点的距离大小
                     arr.append(int(x_center - Inference.TARGET_X)) 
-
+                # 进行一个比较取最接近目标点的 可以用其他比较算法 这里选择了快速排序
                 if abs(Inference.radix_sort(arr)[0]) < abs(Inference.radix_sort(arr)[len(arr)-1]):
                     Inference.DEVIATION_X = Inference.radix_sort(arr)[0]
                 else:
@@ -131,10 +133,10 @@ class Inference(object):
 
                 if mode == True:
                     cv2.putText(frame, "real_x = " + str(Inference.DEVIATION_X), (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
-
+                # 这里进行了位运算的操作是仿照C++那边的，经过实测可以不进行位运算影响不大
                 Inference.HIGH_EIGHT = (abs(Inference.DEVIATION_X) >> 8) & 0xff
                 Inference.LOW_EIGHT = abs(Inference.DEVIATION_X)  & 0xff
-
+                # 空接与非空接
                 if Inference.FLAG == 1:
                     if abs(Inference.DEVIATION_X ) < 24:
                         Inference.DEVIATION_X  = 0
@@ -145,13 +147,13 @@ class Inference(object):
                     Inference.DIRECTION = 1
 
             Inference.draw_data(frame, img_size, mode)
-
+    # 绘制推理框
     def draw_inference(frame, top_left, top_right, bottom_right, tag, confs, i, mode = 1):
         if mode == True:
             cv2.rectangle(frame, top_left, bottom_right, (0, 255, 255), 3, 8)
             cv2.putText(frame,str(float(round(confs[i], 2))), top_right, cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
             cv2.putText(frame, tag, top_left, cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 0, 255), 4)
- 
+    # 将数据显示出来
     def draw_data(frame, img_size, mode = 1):
         if mode == True:
             cv2.putText(frame, "judge_x = " + str(Inference.DEVIATION_X), (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)

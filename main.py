@@ -77,12 +77,11 @@ if __name__ == "__main__":
     while video_capture.Video_capture.CAMERA_OPEN == 0:
         Video = video_capture.Video_capture(is_save)
 
-    Inf = Inference.to_inference(**vars(opt))
+    Inf = Inference(**vars(opt))
     
-    thread1 = threading.Thread(target=(Interactive_serial.receive_data),daemon=True)
-    thread2 = threading.Thread(target=(Interactive_serial.send_data),daemon=True)
+    Inf_serial = Interactive_serial()
+    thread1 = threading.Thread(target=(Inf_serial.send_data))
     thread1.start()
-    thread2.start()
     
     run(Video,Inf,is_save,mode)
 
