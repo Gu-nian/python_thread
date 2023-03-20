@@ -14,7 +14,7 @@ from use_serial import Interactive_serial
 def parse_opt():
     parser = argparse.ArgumentParser()
     # 自启动 default 要改成绝对路径
-    parser.add_argument('--weights', nargs='+', type=str, default='/home/oyc/workspace/python_thread/best (3).pt', help='model path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default='./best.pt', help='model path(s)')
     opt = parser.parse_args()
     return opt
 
@@ -30,7 +30,7 @@ def run(Video, Inference, is_save = 0, mode = 0):
             frame = np.frombuffer(frame_data, dtype=np.uint8)
             frame = frame.reshape((FrameHead.iHeight, FrameHead.iWidth, 1 if FrameHead.uiMediaType == mvsdk.CAMERA_MEDIA_TYPE_MONO8 else 3) )
             
-            Inference.to_Inference(frame, Inference.device, Inference.model, Inference.imgsz, Inference.stride, mode=mode)
+            Inference.to_inference(frame, Inference.device, Inference.model, Inference.imgsz, Inference.stride, mode=mode)
             
             t3 = time_sync()
 
